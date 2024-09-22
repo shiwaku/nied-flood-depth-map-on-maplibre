@@ -1,0 +1,435 @@
+<html>
+
+<head>
+    <title>防災科研 浸水推定図（GeoJSON）</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src='https://unpkg.com/maplibre-gl@4.5.0/dist/maplibre-gl.js'></script>
+    <link href='https://unpkg.com/maplibre-gl@4.5.0/dist/maplibre-gl.css' rel='stylesheet' />
+    <script src="https://unpkg.com/pmtiles@2.11.0/dist/index.js"></script>
+    <style>
+        body {
+            margin: 0;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        .legend {
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 3px;
+            bottom: 50px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.10);
+            font: 12px/14px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+            padding: 10px;
+            position: absolute;
+            right: 10px;
+            z-index: 1;
+            line-height: 1.2;
+            height: auto;
+        }
+
+        .legend h4 {
+            margin: 0 0 10px;
+        }
+
+        .legend div span {
+            border-radius: 50%;
+            display: inline-block;
+            height: 15px;
+            margin-right: 10px;
+            width: 15px;
+            color: orangered
+        }
+
+        .square {
+            width: 15px;
+            height: 15px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+    <div id='legend-24jikankotsuryo' style="display:block;" class='legend'>
+        <p><b>推定浸水深</b></p>
+        <div class="square" style='background-color: rgba(136, 185, 248, 0.8);display: inline-block;'></div>
+        <span style="display: inline-block; margin-left: 5px;">0.5m未満</span><br>
+        <div class="square" style='background-color: rgba(44, 133, 248, 0.8);display: inline-block;'></div>
+        <span style="display: inline-block; margin-left: 5px;">0.5m以上1m未満</span><br>
+        <div class="square" style='background-color: rgba(44, 117, 227, 0.8);display: inline-block;'></div>
+        <span style="display: inline-block; margin-left: 5px;">1m以上2m未満</span><br>
+        <div class="square" style='background-color: rgba(44, 104, 177, 0.8);display: inline-block;'></div>
+        <span style="display: inline-block; margin-left: 5px;">2m以上</span>
+    </div>
+
+    <script type="text/javascript">
+        // Protocolの設定
+        let protocol = new pmtiles.Protocol();
+        maplibregl.addProtocol('pmtiles', (request) => {
+            return new Promise((resolve, reject) => {
+                const callback = (err, data) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve({ data });
+                    }
+                };
+                protocol.tile(request, callback);
+            });
+        });
+
+        // マップの初期化
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: './std.json',
+            zoom: 12.31,
+            minZoom: 1,
+            maxZoom: 23,
+            pitch: 60,
+            maxPitch: 85,
+            bearing: 0,
+            center: [140.30537, 35.47099],
+            hash: true,
+            attributionControl: false
+        });
+
+        // ズーム・回転
+        map.addControl(new maplibregl.NavigationControl());
+
+        // フルスクリーンモードのオンオフ
+        map.addControl(new maplibregl.FullscreenControl());
+
+        // 現在位置表示
+        map.addControl(new maplibregl.GeolocateControl({
+            positionOptions: {
+                enableHighAccuracy: false
+            },
+            fitBoundsOptions: { maxZoom: 18 },
+            trackUserLocation: true,
+            showUserLocation: true
+        }));
+
+        // スケール表示
+        map.addControl(new maplibregl.ScaleControl({
+            maxWidth: 200,
+            unit: 'metric'
+        }));
+
+        // Attributionを折りたたみ表示
+        map.addControl(new maplibregl.AttributionControl({
+            compact: true,
+            customAttribution: '<a href="https://twitter.com/shi__works" target="_blank">X(旧Twitter)</a> | <a href="" target="_blank">Github</a>'
+        }));
+
+        // 3D地形コントロール表示
+        map.addControl(
+            new maplibregl.TerrainControl({
+                source: 'gsidem-terrain-rgb',
+                exaggeration: 1 // 標高を強調する倍率
+            })
+        );
+
+        // マップをロード
+        map.on('load', () => {
+            // 標高タイルソース
+            map.addSource("gsidem-terrain-rgb", {
+                type: 'raster-dem',
+                tiles: [
+                    'https://xs489works.xsrv.jp/raster-tiles/gsi/gsi-dem-terrain-rgb/{z}/{x}/{y}.png',
+                ],
+                attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html#dem" target="_blank">地理院タイル(標高タイル)</a>',
+                tileSize: 256
+            });
+
+            // 標高タイルセット
+            map.setTerrain({ 'source': 'gsidem-terrain-rgb', 'exaggeration': 1 });
+
+            // 2023年7月10日の九州地方での大雨 推定浸水域データ
+            map.addSource("20230710-Kyushu-floodarea", {
+                type: "geojson",
+                data: "./geojson/20230710_kyushu_rain_floodarea.geojson",
+                attribution: '<a href="https://mizu.bosai.go.jp/wiki2/wiki.cgi?page=%A5%C8%A5%C3%A5%D7">防災科研 推定浸水域データ</a>'
+            });
+
+            map.addLayer({
+                id: '20230710-Kyushu-floodarea-fill',
+                type: 'fill',
+                source: '20230710-Kyushu-floodarea',
+                paint: {
+                    // 浸水深で色分け
+                    'fill-color': [
+                        'match',
+                        ['get', '浸水深'],
+                        '0.5m未満', 'rgba(136, 185, 248, 1)',
+                        '0.5m以上1m未満', 'rgba(44, 133, 248, 1)',
+                        '1m以上2m未満', 'rgba(44, 117, 227, 1)',
+                        '2m以上', 'rgba(44, 104, 177, 1)',
+                        'rgba(0, 0, 0, 1)'
+                    ],
+                    'fill-opacity': 0.8,
+                }
+            });
+
+            // 2023年7月15日の東北での大雨 推定浸水域データ
+            map.addSource("20230715-Akita-City-floodarea", {
+                type: "geojson",
+                data: "./geojson/Akita_City_shp_floodarea.geojson",
+                attribution: '<a href="https://mizu.bosai.go.jp/wiki2/wiki.cgi?page=%A5%C8%A5%C3%A5%D7">防災科研 推定浸水域データ</a>'
+            });
+
+            map.addSource("20230715-Akita-City2-floodarea", {
+                type: "geojson",
+                data: "./geojson//Akita_City2_shp_floodarea.geojson",
+                attribution: '<a href="https://mizu.bosai.go.jp/wiki2/wiki.cgi?page=%A5%C8%A5%C3%A5%D7">防災科研 推定浸水域データ</a>'
+            });
+
+            map.addLayer({
+                id: '20230715-Akita-City-floodarea-fill',
+                type: 'fill',
+                source: '20230715-Akita-City-floodarea',
+                paint: {
+                    // 浸水深で色分け
+                    'fill-color': [
+                        'match',
+                        ['get', '浸水深'],
+                        '0.5m未満', 'rgba(136, 185, 248, 1)',
+                        '0.5m以上1m未満', 'rgba(44, 133, 248, 1)',
+                        '1m以上2m未満', 'rgba(44, 117, 227, 1)',
+                        '2m以上', 'rgba(44, 104, 177, 1)',
+                        'rgba(0, 0, 0, 1)'
+                    ],
+                    'fill-opacity': 0.8,
+                }
+            });
+
+            map.addLayer({
+                id: '20230715-Akita-City2-floodarea-fill',
+                type: 'fill',
+                source: '20230715-Akita-City2-floodarea',
+                paint: {
+                    // 浸水深で色分け
+                    'fill-color': [
+                        'match',
+                        ['get', '浸水深'],
+                        '0.5m未満', 'rgba(136, 185, 248, 1)',
+                        '0.5m以上1m未満', 'rgba(44, 133, 248, 1)',
+                        '1m以上2m未満', 'rgba(44, 117, 227, 1)',
+                        '2m以上', 'rgba(44, 104, 177, 1)',
+                        'rgba(0, 0, 0, 1)'
+                    ],
+                    'fill-opacity': 0.8,
+                }
+            });
+
+            // 2023年9月8日の令和5年台風第13号による大雨 推定浸水域データ
+            map.addSource("20230908-Chiba-Mizuhodai-Mobara-floodarea", {
+                type: "geojson",
+                data: "./geojson/Chiba_Mizuhodai_Mobara_08Sep2023_floodarea.geojson",
+                attribution: '<a href="https://mizu.bosai.go.jp/wiki2/wiki.cgi?page=%A5%C8%A5%C3%A5%D7">防災科研 推定浸水域データ</a>'
+            });
+
+            map.addLayer({
+                id: '20230908-Chiba-Mizuhodai-Mobara-floodarea-fill',
+                type: 'fill',
+                source: '20230908-Chiba-Mizuhodai-Mobara-floodarea',
+                paint: {
+                    // 浸水深で色分け
+                    'fill-color': [
+                        'match',
+                        ['get', '浸水深'],
+                        '0.5m未満', 'rgba(136, 185, 248, 1)',
+                        '0.5m以上1m未満', 'rgba(44, 133, 248, 1)',
+                        '1m以上2m未満', 'rgba(44, 117, 227, 1)',
+                        '2m以上', 'rgba(44, 104, 177, 1)',
+                        'rgba(0, 0, 0, 1)'
+                    ],
+                    'fill-opacity': 0.8,
+                }
+            });
+
+            // 令和6年9月21日からの大雨 推定浸水域データ
+            map.addSource("20240921-wajima-city-floodarea", {
+                type: "geojson",
+                data: "./geojson/wajima_city_floodarea.geojson",
+                attribution: '<a href="https://mizu.bosai.go.jp/wiki2/wiki.cgi?page=%A5%C8%A5%C3%A5%D7">防災科研 推定浸水域データ</a>'
+            });
+
+            map.addLayer({
+                id: '20240921-wajima-city-floodarea-fill',
+                type: 'fill',
+                source: '20240921-wajima-city-floodarea',
+                paint: {
+                    // 浸水深で色分け
+                    'fill-color': [
+                        'match',
+                        ['get', '浸水深'],
+                        '0.5m未満', 'rgba(136, 185, 248, 1)',
+                        '0.5m以上1m未満', 'rgba(44, 133, 248, 1)',
+                        '1m以上2m未満', 'rgba(44, 117, 227, 1)',
+                        '2m以上', 'rgba(44, 104, 177, 1)',
+                        'rgba(0, 0, 0, 1)'
+                    ],
+                    'fill-opacity': 0.8,
+                }
+            });
+
+            // 最適化ベクトルタイル
+            map.addSource("optimal_bvmap-v1", {
+                "type": "vector",
+                "tiles": [
+                    "pmtiles://https://cyberjapandata.gsi.go.jp/xyz/optimal_bvmap-v1/optimal_bvmap-v1.pmtiles/{z}/{x}/{y}"
+                ],
+                "minzoom": 14,
+                "maxzoom": 16,
+                "attribution": "<a href='https://github.com/gsi-cyberjapan/optimal_bvmap' target='_blank'>国土地理院最適化ベクトルタイル(標準地図風スタイル)</a>"
+            });
+
+            // 地理院地図ベクトルタイル
+            // タンク
+            map.addLayer({
+                "id": "buildings4302",
+                "type": "fill-extrusion",
+                "source": "optimal_bvmap-v1",
+                "source-layer": "BldA",
+                "metadata": { "name": "タンク" },
+                "filter": ["all", ["==", "vt_code", 4302], ["==", "$type", "Polygon"]],
+                "paint": {
+                    "fill-extrusion-color": "rgb(242,234,226)",
+                    "fill-extrusion-opacity": 0.8,
+                    "fill-extrusion-height": 10
+                }
+            });
+
+            // 巨大構造物
+            map.addLayer({
+                "id": "buildings4301",
+                "type": "fill-extrusion",
+                "source": "optimal_bvmap-v1",
+                "source-layer": "BldA",
+                "metadata": { "name": "巨大構造物" },
+                "filter": ["all", ["==", "vt_code", 4301], ["==", "$type", "Polygon"]],
+                "paint": {
+                    "fill-extrusion-color": "rgb(242,234,226)",
+                    "fill-extrusion-opacity": 0.8,
+                    "fill-extrusion-height": 100
+                }
+            });
+
+            // 普通無壁舎
+            map.addLayer({
+                "id": "buildings3111",
+                "type": "fill-extrusion",
+                "source": "optimal_bvmap-v1",
+                "source-layer": "BldA",
+                "metadata": { "name": "普通無壁舎" },
+                "filter": ["all", ["==", "vt_code", 3111], ["==", "$type", "Polygon"]],
+                "paint": {
+                    "fill-extrusion-color": "rgb(242,234,226)",
+                    "fill-extrusion-opacity": 0.8,
+                    "fill-extrusion-height": 10
+                }
+            });
+
+            // 堅ろう無壁舎
+            map.addLayer({
+                "id": "buildings3112",
+                "type": "fill-extrusion",
+                "source": "optimal_bvmap-v1",
+                "source-layer": "BldA",
+                "metadata": { "name": "堅ろう無壁舎" },
+                "filter": ["all", ["==", "vt_code", 3112], ["==", "$type", "Polygon"]],
+                "paint": {
+                    "fill-extrusion-color": "rgb(150,200,255)",
+                    "fill-extrusion-opacity": 0.8,
+                    "fill-extrusion-height": 40
+                }
+            });
+
+            // 普通建物
+            map.addLayer({
+                "id": "buildings3101",
+                "type": "fill-extrusion",
+                "source": "optimal_bvmap-v1",
+                "source-layer": "BldA",
+                "metadata": { "name": "普通建物" },
+                "filter": ["all", ["==", "vt_code", 3101], ["==", "$type", "Polygon"]],
+                "paint": {
+                    "fill-extrusion-color": "rgb(242,234,226)",
+                    "fill-extrusion-opacity": 0.8,
+                    "fill-extrusion-height": 10
+                }
+            });
+
+            // 堅ろう建物
+            map.addLayer({
+                "id": "buildings3102",
+                "type": "fill-extrusion",
+                "source": "optimal_bvmap-v1",
+                "source-layer": "BldA",
+                "metadata": { "name": "堅ろう建物" },
+                "filter": ["all", ["==", "vt_code", 3102], ["==", "$type", "Polygon"]],
+                "paint": {
+                    "fill-extrusion-color": "rgb(150,200,255)",
+                    "fill-extrusion-opacity": 0.8,
+                    "fill-extrusion-height": 40
+                }
+            });
+
+            // 高層建物
+            map.addLayer({
+                "id": "buildings3103",
+                "type": "fill-extrusion",
+                "source": "optimal_bvmap-v1",
+                "source-layer": "BldA",
+                "metadata": { "name": "高層建物" },
+                "filter": ["all", ["==", "vt_code", 3103], ["==", "$type", "Polygon"]],
+                "paint": {
+                    "fill-extrusion-color": "rgb(0,255,255)",
+                    "fill-extrusion-opacity": 0.8,
+                    "fill-extrusion-height": 100
+                }
+            });
+
+            // 注記-河川名
+            map.addLayer({
+                "type": "symbol",
+                "id": "gsi-label-layer",
+                "source": "gsibv-vectortile-source-1-4-16",
+                "source-layer": "label",
+                "minzoom": 11,
+                "maxzoom": 16,
+                "filter": ["all", ["==", "ftCode", 100], ["==", "annoCtg", 322]],
+                "paint": {
+                    'text-color': 'rgba(0, 101, 203, 1)',
+                    "text-halo-color": "rgba(255, 255, 255, 1)",
+                    "text-halo-width": 1.0
+                },
+                "layout": {
+                    "text-size": 20,
+                    "text-font": ["Open Sans Bold"],
+                    "text-field": ["get", "knj"],
+                    "symbol-placement": "point",
+                    "text-allow-overlap": false,
+                    "visibility": "visible"
+                }
+            });
+
+            // Skyレイヤ
+            map.setSky({
+                "sky-color": "#199EF3",
+                "sky-horizon-blend": 0.7,
+                "horizon-color": "#f0f8ff",
+                "horizon-fog-blend": 0.8,
+                "fog-color": "#2c7fb8",
+                "fog-ground-blend": 0.9,
+                "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 12, 0]
+            });
+
+        })
+    </script>
+</body>
+
+</html>
