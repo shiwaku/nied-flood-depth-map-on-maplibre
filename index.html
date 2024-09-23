@@ -275,7 +275,8 @@
                     'fill-opacity': 0.8,
                 }
             });
-
+            
+            /*
             // 最適化ベクトルタイル
             map.addSource("optimal_bvmap-v1", {
                 "type": "vector",
@@ -286,13 +287,14 @@
                 "maxzoom": 16,
                 "attribution": "<a href='https://github.com/gsi-cyberjapan/optimal_bvmap' target='_blank'>国土地理院最適化ベクトルタイル(標準地図風スタイル)</a>"
             });
+            */
 
             // 地理院地図ベクトルタイル
             // タンク
             map.addLayer({
                 "id": "buildings4302",
                 "type": "fill-extrusion",
-                "source": "optimal_bvmap-v1",
+                "source": "v",
                 "source-layer": "BldA",
                 "metadata": { "name": "タンク" },
                 "filter": ["all", ["==", "vt_code", 4302], ["==", "$type", "Polygon"]],
@@ -307,7 +309,7 @@
             map.addLayer({
                 "id": "buildings4301",
                 "type": "fill-extrusion",
-                "source": "optimal_bvmap-v1",
+                "source": "v",
                 "source-layer": "BldA",
                 "metadata": { "name": "巨大構造物" },
                 "filter": ["all", ["==", "vt_code", 4301], ["==", "$type", "Polygon"]],
@@ -322,7 +324,7 @@
             map.addLayer({
                 "id": "buildings3111",
                 "type": "fill-extrusion",
-                "source": "optimal_bvmap-v1",
+                "source": "v",
                 "source-layer": "BldA",
                 "metadata": { "name": "普通無壁舎" },
                 "filter": ["all", ["==", "vt_code", 3111], ["==", "$type", "Polygon"]],
@@ -337,7 +339,7 @@
             map.addLayer({
                 "id": "buildings3112",
                 "type": "fill-extrusion",
-                "source": "optimal_bvmap-v1",
+                "source": "v",
                 "source-layer": "BldA",
                 "metadata": { "name": "堅ろう無壁舎" },
                 "filter": ["all", ["==", "vt_code", 3112], ["==", "$type", "Polygon"]],
@@ -352,7 +354,7 @@
             map.addLayer({
                 "id": "buildings3101",
                 "type": "fill-extrusion",
-                "source": "optimal_bvmap-v1",
+                "source": "v",
                 "source-layer": "BldA",
                 "metadata": { "name": "普通建物" },
                 "filter": ["all", ["==", "vt_code", 3101], ["==", "$type", "Polygon"]],
@@ -367,7 +369,7 @@
             map.addLayer({
                 "id": "buildings3102",
                 "type": "fill-extrusion",
-                "source": "optimal_bvmap-v1",
+                "source": "v",
                 "source-layer": "BldA",
                 "metadata": { "name": "堅ろう建物" },
                 "filter": ["all", ["==", "vt_code", 3102], ["==", "$type", "Polygon"]],
@@ -382,7 +384,7 @@
             map.addLayer({
                 "id": "buildings3103",
                 "type": "fill-extrusion",
-                "source": "optimal_bvmap-v1",
+                "source": "v",
                 "source-layer": "BldA",
                 "metadata": { "name": "高層建物" },
                 "filter": ["all", ["==", "vt_code", 3103], ["==", "$type", "Polygon"]],
@@ -390,30 +392,6 @@
                     "fill-extrusion-color": "rgb(0,255,255)",
                     "fill-extrusion-opacity": 0.8,
                     "fill-extrusion-height": 100
-                }
-            });
-
-            // 注記-河川名
-            map.addLayer({
-                "type": "symbol",
-                "id": "gsi-label-layer",
-                "source": "gsibv-vectortile-source-1-4-16",
-                "source-layer": "label",
-                "minzoom": 11,
-                "maxzoom": 16,
-                "filter": ["all", ["==", "ftCode", 100], ["==", "annoCtg", 322]],
-                "paint": {
-                    'text-color': 'rgba(0, 101, 203, 1)',
-                    "text-halo-color": "rgba(255, 255, 255, 1)",
-                    "text-halo-width": 1.0
-                },
-                "layout": {
-                    "text-size": 20,
-                    "text-font": ["Open Sans Bold"],
-                    "text-field": ["get", "knj"],
-                    "symbol-placement": "point",
-                    "text-allow-overlap": false,
-                    "visibility": "visible"
                 }
             });
 
